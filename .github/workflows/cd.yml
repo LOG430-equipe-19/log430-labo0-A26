@@ -1,11 +1,23 @@
 name: Pipeline CD
 
+# Start when "CI Pipeline" finishes on main instead of on push, so an image
+# is only built after the tests of the same commit have run
 on:
-  push:
-    branches: [ main ]
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    types: [completed]
+    branches: [main]
+
+# Publish one image at a time, in the order CI runs finished, so a slower
+# publication of an older commit cannot overwrite "latest" afterwards
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 
 jobs:
   publish:
+    # Publish only if the tests passed, and ignore CI runs started by pull requests
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     runs-on: ubuntu-latest
 
     permissions:
@@ -15,9 +27,22 @@ jobs:
     steps:
       - name: Checkout dépôt
         uses: actions/checkout@v4
+        with:
+          # Build the exact commit that CI tested, not the latest commit on main
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Définir le nom de l'image
-        run: echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+          echo "SHORT_SHA=${HEAD_SHA::7}" >> "$GITHUB_ENV"
+          # Move "latest" only if the tested commit is still the tip of main
+          # (for workflow_run, GITHUB_SHA is the latest commit on main), so
+          # re-running an old CI run never republishes old code as "latest"
+          if [ "$HEAD_SHA" = "$GITHUB_SHA" ]; then
+            echo "LATEST_TAG=ghcr.io/${GITHUB_REPOSITORY,,}:latest" >> "$GITHUB_ENV"
+          fi
 
       - name: Authentification à GHCR
         uses: docker/login-action@v3
@@ -31,4 +56,12 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ env.IMAGE_NAME }}:latest
+          # "sha-xxxxxxx" to trace and roll back each version, plus "latest"
+          # when this commit is the tip of main (empty lines are ignored)
+          tags: |
+            ${{ env.IMAGE_NAME }}:sha-${{ env.SHORT_SHA }}
+            ${{ env.LATEST_TAG }}
+          # Link the package to this repository and record the source commit
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.event.workflow_run.head_sha }}
