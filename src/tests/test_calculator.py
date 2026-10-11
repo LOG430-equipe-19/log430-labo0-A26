@@ -4,31 +4,25 @@ SPDX - License - Identifier: LGPL - 3.0 - or -later
 Auteurs : Gabriel C. Ullmann, Fabio Petrillo, 2025
 """
 
-# Please note that documentation is for my personal understanding. 
-import pytest 
+import pytest
 from calculator import Calculator
 
-"""
-Python fixture which creates and returns a new Calculator object.
-Any test function that might includes calculator as a parameter
-will automatically receive this object, hence avoiding creating a Calculator Object
-for each test function.
-    
-Returns :
-    calculator (Calculator) : a calculator object.  
-"""
+
 @pytest.fixture
 def calculator():
+    """
+    Provide a new Calculator object to each test that requests it.
+
+    Returns:
+        Calculator: a fresh calculator object.
+    """
     return Calculator()
 
-"""
-Verify that get_hello_message returns 'Calculatrice'.
 
-Args:
-    calculator (Calculator): Fixture providing a Calculator instance.
-"""
 def test_app(calculator, tmp_path, monkeypatch):
-
+    """
+    Verify that the welcome message shows the user name read from the .env file.
+    """
     env_file = tmp_path / ".env"
     env_file.write_text("CALCULATOR_USERNAME=YourName")
 
@@ -38,84 +32,77 @@ def test_app(calculator, tmp_path, monkeypatch):
         "Bienvenu(e) YourName\n"
     )
 
-"""
-Test addition with two values using parametrize.
 
-Args:
-    calc (Calculator): Fixture providing a Calculator instance.
-    a (float): First operand.
-    b (float): Second operand.
-    expected (float): Expected sum of a and b.
-"""
-@pytest.mark.parametrize("value_one, value_two, expected_result", [(1, 2, 3),])
+@pytest.mark.parametrize(
+    "value_one, value_two, expected_result",
+    [(1, 2, 3), (-4, -6, -10), (0, 0, 0), (0.1, 0.2, pytest.approx(0.3))],
+    ids=["positif", "negatif", "zero", "decimal"],
+)
 def test_addition(calculator, value_one, value_two, expected_result):
+    """
+    Verify addition and that its result is stored in last_result.
+    Decimal results use pytest.approx because 0.1 + 0.2 is not exactly 0.3.
+    """
     assert calculator.addition(value_one, value_two) == expected_result
     assert calculator.last_result == expected_result
-    
-"""
-Test subtraction with two values using parametrize.
 
-Args:
-    calculator (Calculator): Fixture providing a Calculator instance.
-    value_one (float): Minuend (the value to subtract from).
-    value_two (float): Subtrahend (the value to subtract).
-    expected_result (float): Expected difference (value_one - value_two).
-"""
-@pytest.mark.parametrize("value_one, value_two, expected_result", [(0, 0, 0),])
+
+@pytest.mark.parametrize(
+    "value_one, value_two, expected_result",
+    [(5, 3, 2), (-3, -5, 2), (0, 0, 0), (0.3, 0.1, pytest.approx(0.2))],
+    ids=["positif", "negatif", "zero", "decimal"],
+)
 def test_subtraction(calculator, value_one, value_two, expected_result):
-    assert calculator.subtraction(value_one, value_two) == pytest.approx(expected_result)
-    assert calculator.last_result == pytest.approx(expected_result)
+    """
+    Verify subtraction and that its result is stored in last_result.
+    """
+    assert calculator.subtraction(value_one, value_two) == expected_result
+    assert calculator.last_result == expected_result
 
-"""
-Test multiplication with two values using parametrize.
 
-Args:
-    calculator (Calculator): Fixture providing a Calculator instance.
-    value_one (float): First factor.
-    value_two (float): Second factor.
-    expected_result (float): Expected product (value_one * value_two).
-"""
-@pytest.mark.parametrize("value_one, value_two, expected_result", [(0, 1, 0),])
+@pytest.mark.parametrize(
+    "value_one, value_two, expected_result",
+    [(3, 4, 12), (-3, 4, -12), (7, 0, 0), (0.5, 0.2, pytest.approx(0.1))],
+    ids=["positif", "negatif", "zero", "decimal"],
+)
 def test_multiplication(calculator, value_one, value_two, expected_result):
-    assert calculator.multiplication(value_one, value_two) == pytest.approx(expected_result)
-    assert calculator.last_result == pytest.approx(expected_result)
+    """
+    Verify multiplication and that its result is stored in last_result.
+    """
+    assert calculator.multiplication(value_one, value_two) == expected_result
+    assert calculator.last_result == expected_result
 
-"""
-Test division with valid non-zero denominator.
 
-Args:
-    calculator (Calculator): Fixture providing a Calculator instance.
-"""
-def test_division_pass(calculator):
-    assert calculator.division(100, 2) == 50
-    assert calculator.last_result == 50
-    
-    
-"""
-Test division by zero according to the current implementation.
+@pytest.mark.parametrize(
+    "value_one, value_two, expected_result",
+    [(100, 2, 50), (-9, 3, -3), (0, 5, 0), (2.5, 2, 1.25)],
+    ids=["positif", "negatif", "zero", "decimal"],
+)
+def test_division(calculator, value_one, value_two, expected_result):
+    """
+    Verify division by a non-zero value and that its result is stored in
+    last_result.
+    """
+    assert calculator.division(value_one, value_two) == expected_result
+    assert calculator.last_result == expected_result
 
-Note:
-    The code does not raise an exception. It returns the string suggesting an error.
 
-Args:
-    calculator (Calculator): Fixture providing a Calculator instance.
-"""
-def test_division_by_zero_pass(calculator):
-    ret = calculator.division(1, 0)
-    assert ret == "Erreur : division par zéro"
+@pytest.mark.parametrize("value_two", [0, 0.0], ids=["entier", "decimal"])
+def test_division_by_zero(calculator, value_two):
+    """
+    Verify that dividing by zero does not raise: the calculator returns an
+    error message and stores "Error" in last_result.
+    """
+    assert calculator.division(1, value_two) == "Erreur : division par zéro"
     assert calculator.last_result == "Error"
 
-"""
-Test that division by zero raises ZeroDivisionError.
 
-Note:
-    This test is intentionally false: the current implementation
-    returns a string instead of raising. As a result, this test fails.
-
-Args:
-    calculator (Calculator): Fixture providing a Calculator instance.
-
+@pytest.mark.xfail(reason="Q1 : test volontairement en échec, division() ne lève pas ZeroDivisionError")
 def test_division_by_zero_should_raise(calculator):
+    """
+    Intentionally failing test written for Question 1: it expects
+    ZeroDivisionError, but the calculator returns a message instead.
+    Run `pytest --runxfail -k should_raise` to see how pytest reports it.
+    """
     with pytest.raises(ZeroDivisionError):
-        calculator.division(1, 0)  
-"""
+        calculator.division(1, 0)
