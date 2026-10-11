@@ -54,6 +54,8 @@ jobs:
       - name: Construire et publier l'image
         uses: docker/build-push-action@v6
         with:
+          # Path context: build the commit checked out above (head_sha); the
+          # default Git context would build the latest commit on main instead
           context: .
           push: true
           # "sha-xxxxxxx" to trace and roll back each version, plus "latest"
