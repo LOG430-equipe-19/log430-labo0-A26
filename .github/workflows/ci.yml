@@ -8,12 +8,8 @@ jobs:
     environment: Labo0
 
     steps:
-      - name: Checkout dépot
+      - name: Checkout dépôt
         uses: actions/checkout@v4
-
-      - name: Créer fichier .env 
-        run: |
-          echo "CALCULATOR_USERNAME=GithubActions" >> .env
 
       - name: Installer Python
         uses: actions/setup-python@v5
@@ -25,7 +21,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Éxécuter les tests
+      - name: Exécuter les tests
         env:
           PYTHONPATH: ${{ github.workspace }}/src
         run: |
