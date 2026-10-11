@@ -1,0 +1,9 @@
+# Keep the build context small and free of secrets: the image only needs
+# requirements.txt and src/ (see Dockerfile)
+.git
+.github
+.env
+.pytest_cache
+**/__pycache__
+docs
+.qodo
