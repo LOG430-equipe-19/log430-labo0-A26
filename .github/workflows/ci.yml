@@ -1,13 +1,19 @@
+# Ce nom compte : cd.yml attend la fin de « CI Pipeline » sur main pour publier l'image.
 name: CI Pipeline
 
+# La CI tourne à chaque push, sur n'importe quelle branche, et à chaque pull request.
 on: [push, pull_request]
 
 jobs:
+  # Un seul job, sur une machine Ubuntu fournie par GitHub, neuve à chaque exécution.
   build:
     runs-on: ubuntu-latest
+    # Environnement GitHub « Labo0 », repris du gabarit : il peut contenir des secrets,
+    # mais les tests n'en ont pas besoin.
     environment: Labo0
 
     steps:
+      # Récupère le code du dépôt, puis installe Python 3.11 et les dépendances.
       - name: Checkout dépôt
         uses: actions/checkout@v4
 
@@ -21,6 +27,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # Lance les tests : si un seul échoue, la CI est rouge et rien n'est publié.
+      # Avec -v, chaque test s'affiche ; PYTHONPATH pointe vers src/, où est calculator.py.
       - name: Exécuter les tests
         env:
           PYTHONPATH: ${{ github.workspace }}/src
